@@ -1,8 +1,43 @@
-# SSLPinningWithPFX
-SSL pix Certificate Pinning
+import Security
+import UIKit
 
+class SSLPingWithPFXViewController: UIViewController {
 
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // Do any additional setup after loading the view.
+    }
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+                self.callAPI()
+    }
+
+    private func callAPI() {
+        let url = URL(string: "url")
+        /// When not pinning, we simply skip setting our own delegate
+        let session = URLSession(configuration: URLSessionConfiguration.ephemeral, delegate: self, delegateQueue: nil)
+        var urlRequest = URLRequest.init(url:URL(string: "https://approvalapp.api.acceptatie-ds.nl/api/data/TaskList")!)
+                urlRequest.cachePolicy = .reloadIgnoringLocalCacheData
+                urlRequest.httpMethod = "GET"
+                urlRequest.addValue("text/plain", forHTTPHeaderField: "Content-Type")
+                urlRequest.setValue("token", forHTTPHeaderField: "Authorization")
+        if let url = url {
+            let task = session.dataTask(with: urlRequest, completionHandler: { (data, response, error) in
+                DispatchQueue.main.async { [weak self] in
+                    if data != nil {
+                        let str = String(decoding: data!, as: UTF8.self)
+                        print("Received data:\n\(str)")
+                    }
+                    if response != nil { self?.alert(message: "Certificate pinning is 🚀  successfully completed") }
+                }
+            })
+            task.resume()
+        }
+    }
+
+}
 //--------- SSL Pinning with pfx and Certificate ---------//
+extension SSLPingWithPFXViewController: URLSessionDelegate {
 
     
     func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
@@ -38,7 +73,7 @@ SSL pix Certificate Pinning
                 /// either indicate a MITM attack, or that the backend certificate and the private key changed,
                 /// most likely due to expiration.
                 completionHandler(.cancelAuthenticationChallenge, nil)
-                self.alert(message: "✅ Request failed successfully")
+//                self.alert(message: "✅ Request failed successfully")
                 return
             }
         }
@@ -118,38 +153,12 @@ SSL pix Certificate Pinning
         }
         return publicKey
     }
-    
-    
-    //--------- SSL pinning by Certificate ---------//
-
-    
-    func urlSession(_ session: URLSession, didReceive challenge: URLAuthenticationChallenge, completionHandler: @escaping (URLSession.AuthChallengeDisposition, URLCredential?) -> Void) {
-        
-        guard let serverTrust = challenge.protectionSpace.serverTrust else {
-            completionHandler(.cancelAuthenticationChallenge, nil);
-            return
-        }
-        
-        let certificate = SecTrustGetCertificateAtIndex(serverTrust, 0)
-        // SSL Policies for domain name check
-        let policy = NSMutableArray()
-        policy.add(SecPolicyCreateSSL(true, challenge.protectionSpace.host as CFString))
-        
-        //evaluate server certifiacte
-        let isServerTrusted = SecTrustEvaluateWithError(serverTrust, nil)
-        
-        //Local and Remote certificate Data
-        let remoteCertificateData:NSData =  SecCertificateCopyData(certificate!)
-        let pathToCertificate = Bundle.main.path(forResource: "googlein", ofType: "cer")
-        let localCertificateData:NSData = NSData(contentsOfFile: pathToCertificate!)!
-        
-        //Compare certificates
-        if(isServerTrusted && remoteCertificateData.isEqual(to: localCertificateData as Data)){
-            let credential:URLCredential =  URLCredential(trust:serverTrust)
-            print("Certificate pinning is successfully completed")
-            completionHandler(.useCredential,credential)
-        }
-        else{
-            completionHandler(.cancelAuthenticationChallenge,nil)
-        }
+}
+extension UIViewController {
+    func alert(message: String, title: String = "") {
+        let alertController = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        let OKAction = UIAlertAction(title: "OK", style: .default, handler: nil)
+        alertController.addAction(OKAction)
+        self.present(alertController, animated: true, completion: nil)
     }
+}
